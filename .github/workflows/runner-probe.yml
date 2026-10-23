@@ -1,0 +1,36 @@
+name: runner-probe
+on:
+  push:
+    branches: [chatgpt-runner-probe]
+    paths-ignore:
+      - ".runner-probe/**"
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-runner-probe
+      - shell: powershell
+        run: |
+          $root='D:\AI\MV-Agent\projects\cailai-20260908'
+          $dir='.runner-probe'; New-Item -ItemType Directory -Force $dir|Out-Null
+          $name=($env:RUNNER_NAME -replace '[^A-Za-z0-9._-]','_')
+          $gpu=(& nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader 2>&1) -join '; '
+          @"
+time=$((Get-Date).ToString('o'))
+runner=$env:RUNNER_NAME
+machine=$env:COMPUTERNAME
+os=$env:RUNNER_OS
+arch=$env:RUNNER_ARCH
+gpu=$gpu
+facai_project_exists=$(Test-Path $root)
+"@ | Set-Content "$dir\$name.txt" -Encoding UTF8
+          git config user.name "facai-runner"
+          git config user.email "actions@users.noreply.github.com"
+          git add $dir
+          git commit -m "runner probe: $env:RUNNER_NAME"
+          git push origin HEAD:chatgpt-runner-probe
